@@ -1,13 +1,11 @@
-# Step 1: Use an official Node.js image to build the Angular app
-FROM node:latest
+# Step 1: Build the Angular app
+FROM node:latest AS build
+
 # Set the working directory inside the container
 WORKDIR /app
 
 # Copy package.json and package-lock.json
 COPY package*.json ./
-
-# Install the Angular CLI globally
-RUN npm install -g @angular/cli
 
 # Install the dependencies
 RUN npm install
@@ -15,9 +13,20 @@ RUN npm install
 # Copy the Angular app source code
 COPY . .
 
-# Open port 4200 for the Angular app
-EXPOSE 4200
+# Build the Angular app for production
+RUN npm run build --prod
 
-# Run the Angular app using ng serve
-CMD ["ng", "serve", "--host", "0.0.0.0", "--port", "4200"]
+# Step 2: Serve the app with NGINX
+FROM nginx:alpine
 
+# Remove the default NGINX website
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copy the Angular build output to NGINX's html directory
+COPY --from=build /app/dist/browser /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Start NGINX server
+CMD ["nginx", "-g", "daemon off;"]
